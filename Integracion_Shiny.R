@@ -6,7 +6,7 @@ library(ggplot2)
 library(DT)
 
 # Cargar los datos
-shapefile_path <- "/Users/jeronimo/Desktop/Jero/VS_Code/VI/atlas_de_riesgo_inundaciones/atlas_de_riesgo_inundaciones.shp"
+shapefile_path <- "/Users/jeronimo/Desktop/Jero/VS_Code/VI/Floods/atlas_de_riesgo_inundaciones/atlas_de_riesgo_inundaciones.shp"
 gdf <- st_read(shapefile_path)
 
 # Agrupar por alcaldía y calcular el nivel promedio de riesgo de inundación
@@ -14,10 +14,10 @@ gdf_summary <- gdf %>%
   group_by(alcaldi) %>%
   summarise(
     avg_intensity = mean(as.numeric(factor(intnsdd, levels = c("Muy Bajo", "Bajo", "Medio", "Alto", "Muy Alto"))), na.rm = TRUE),
-    geometry = st_combine(geometry),  # Combina geometrías de la misma alcaldía
+    geometry = st_combine(geometry), # Combina geometrías de la misma alcaldía
     .groups = "drop"
   ) %>%
-  st_cast("POLYGON") %>%  # Asegura que las geometrías son polígonos
+  st_cast("POLYGON") %>% # Asegura que las geometrías son polígonos
   st_as_sf()
 
 # Convertir el GeoDataFrame a un dataframe
@@ -25,7 +25,7 @@ df_no_geom <- as.data.frame(gdf)
 
 # Definir la paleta de colores personalizada
 pal <- colorNumeric(
-  palette = colorRampPalette(c("#ADD8E6", "#00008B"))(9),  # Azul claro a azul oscuro
+  palette = colorRampPalette(c("#ADD8E6", "#00008B"))(9), # Azul claro a azul oscuro
   domain = gdf_summary$avg_intensity
 )
 
@@ -64,7 +64,7 @@ ui <- fluidPage(
           border-radius: 5px;
           box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
         }
-      ")),      
+      ")),
       div(
         id = "grid-container",
         div(
@@ -96,7 +96,6 @@ ui <- fluidPage(
 
 # Define server logic
 server <- function(input, output) {
-  
   # Filtrar datos según selección
   filtered_data <- reactive({
     if ("Todas" %in% input$alcaldia_filter || length(input$alcaldia_filter) == 0) {
@@ -105,7 +104,7 @@ server <- function(input, output) {
       gdf_summary %>% filter(alcaldi %in% input$alcaldia_filter)
     }
   })
-  
+
   filtered_table <- reactive({
     if ("Todas" %in% input$alcaldia_filter || length(input$alcaldia_filter) == 0) {
       df_no_geom[, c("id", "alcaldi", "intnsdd", "area_m2", "perim_m", "intens_n", "intns_nm", "int2")]
@@ -115,14 +114,14 @@ server <- function(input, output) {
         select(id, alcaldi, intnsdd, area_m2, perim_m, intens_n, intens_nm, int2)
     }
   })
-  
+
   # Renderizar el mapa
   output$map <- renderLeaflet({
     leaflet(filtered_data()) %>%
       addProviderTiles("CartoDB.Positron") %>%
       addPolygons(
-        fillColor = ~pal(avg_intensity),
-        color = ~pal(avg_intensity),
+        fillColor = ~ pal(avg_intensity),
+        color = ~ pal(avg_intensity),
         weight = 1,
         opacity = 1,
         fillOpacity = 0.7,
@@ -132,7 +131,7 @@ server <- function(input, output) {
           fillOpacity = 0.9,
           bringToFront = TRUE
         ),
-        label = ~paste0(alcaldi, ": ", round(avg_intensity, 2)),
+        label = ~ paste0(alcaldi, ": ", round(avg_intensity, 2)),
         labelOptions = labelOptions(
           style = list("font-weight" = "bold", "color" = "black"),
           textsize = "12px",
@@ -146,12 +145,12 @@ server <- function(input, output) {
         position = "bottomright"
       )
   })
-  
+
   # Renderizar el gráfico de barras
   output$barPlot <- renderPlot({
     df_resumen <- filtered_table() %>%
       count(intnsdd, name = "Registros")
-    
+
     ggplot(df_resumen, aes(x = intnsdd, y = Registros)) +
       geom_bar(stat = "identity", fill = "steelblue", color = "black") +
       labs(
@@ -162,7 +161,7 @@ server <- function(input, output) {
       theme_minimal() +
       theme(legend.position = "none")
   })
-  
+
   # Renderizar la tabla dinámica
   output$table <- renderDT({
     datatable(
@@ -177,4 +176,3 @@ server <- function(input, output) {
 
 # Ejecutar la aplicación
 shinyApp(ui, server)
-
